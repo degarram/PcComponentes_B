@@ -1,0 +1,26 @@
+# Detectar texto automáticamente
+* text=auto
+
+# Scripts Linux
+*.sh text eol=lf
+
+# Scripts Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Imágenes
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+
+# Fuentes
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Otros binarios comunes
+*.zip binary
+*.pdf binary
