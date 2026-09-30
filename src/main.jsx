@@ -20,7 +20,8 @@ const routerObjects=createBrowserRouter(
       element: <Layout/> ,
       children:[
         { path:'/' , element: <Home/> },
-        { path: 'Productos/:categoria', element: <ProductosCat/> },
+        //{ path: 'Productos/Categoria/:categoria', element: <ProductosCat/> }, <----- segmentos variables para usar hook useParams()
+        { path: 'Productos/Categoria', element: <ProductosCat/> },
       ]
     },
     { path:'Cliente',

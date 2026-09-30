@@ -1,6 +1,10 @@
 import './OffCanvas.css'
+import { useNavigate } from 'react-router'
 
 function OffCanvas(){
+
+    const navigate=useNavigate();
+
     return (
         <div className="mt-5 mb-4">
             <button className="btn btn-otuline-secondary" 
@@ -8,7 +12,7 @@ function OffCanvas(){
                     data-bs-toggle="offcanvas" 
                     data-bs-target="#offcanvasWithBothOptions" 
                     aria-controls="offcanvasWithBothOptions">
-                        <i class="fa-solid fa-bars"></i> Todas las categorias
+                        <i className="fa-solid fa-bars"></i> Todas las categorias
             </button>
 
             <div className="offcanvas offcanvas-start" 
@@ -26,6 +30,22 @@ function OffCanvas(){
                     <div className="offcanvas-body">
                         <h3><strong>Categorias</strong></h3>
                         <p>....cargar categorias principales invocando a servicio....</p>
+                        {
+                            /*
+                                ....usando segmentos variables para cambio de url en funcion categoria seleccionada
+
+                                <div className="list-group">
+                                    <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria/Componentes')}>Componentes</button>
+                                    <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria/Ordenadores')}>Ordenadores</button>
+                                    <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria/Perifericos')}>Perifericos</button>
+                                </div>                        
+                                */
+                        }
+                        <div className="list-group">
+                            <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria?categoria=Componentes')}>Componentes</button>
+                            <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria?categoria=Ordenadores')}>Ordenadores</button>
+                            <button type="button" className="list-group-item list-group-item-action" onClick={ ()=> navigate('/Productos/Categoria?categoria=Perifericos')}>Perifericos</button>
+                        </div>                        
                     </div>
             </div>        
         </div>
