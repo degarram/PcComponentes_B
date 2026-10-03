@@ -14,6 +14,8 @@ function ProductosCat(){
             <div className="col-12 d-flex flex-column align-items-center justify-content-center">
                 {/* <h1>Categoria: <strong>{parametrosUrl.categoria}</strong></h1>
                 <p>...cargamos desde bd los productos de la categoria {parametrosUrl.categoria}...</p> */}
+                <h1>Categoria: <strong>{queryParams.get('categoria')}</strong></h1>
+                <p>...cargamos desde bd los productos de la categoria { queryParams.get('categoria') }...</p>
             </div>
         </div>
     </div>

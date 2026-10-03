@@ -1,11 +1,11 @@
 {
   "name": "pccomponentes_b_nodejs",
   "version": "1.0.0",
-  "description": "",
+  "description": "proyecto de tienda pccomponentes hecho en nodejs + express contra mongodb",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
