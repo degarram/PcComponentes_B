@@ -45,9 +45,11 @@ const cors=require('cors'); //<--- el modulo cors exporta una funcion q al ejecu
                            //que el cliente REACT pueda hacer peticiones HTTP al servidor web express aunque este
                            //se encuentre en un dominio distinto al del cliente REACT
 
+const bcrypt=require('bcrypt'); //<--- el modulo bcrypt exporta un objeto que contiene funciones para generar hash de passwords y comprobarlos
+const jsonwebtoken=require('jsonwebtoken'); //<--- el modulo jsonwebtoken exporta un objeto que contiene funciones para generar y comprobar tokens JWT
+
 const webServer=express(); //<--- de la ejecucion de la funcion express() se obtiene un objeto que representa el servidor web
                            // es un objeto Application de express: https://expressjs.com/en/5x/api/application/
-    
 
 const mongoCliente=new mongodb.MongoClient(process.env.MONGODB_URL); //<--- cliente para conectarnos a mongodb
 
@@ -68,6 +70,217 @@ webServer.use(cors()); //<--- 4º funcion middleware de la PIPELINE habilita COR
 //                     next();
 //                 } 
 //             );
+
+webServer.post(
+    '/api/Cliente/Registro',
+    async function(req,res,next){
+        try{
+            const { nombre, email, password }=req.body;
+            console.log('datos recibidos desde cliente react...', nombre, email, password);
+
+            //1º paso: conectarse a la base de datos mongodb usando el cliente mongoCliente
+            await mongoCliente.connect(); 
+            
+            //2º paso: en req.body recibo { nombre:'...', email:'...', password:'....'} comprobamos q no existe una cuenta ya
+            //   con ese email en la coleccion 'clientes' de la bd, si existe ---> enviar respuesta de error
+            const _cliente=await mongoCliente.db(process.env.MONGODB_DBNAME)
+                                            .collection('clientes')
+                                            .findOne({ 'cuenta.email': email});
+            if( _cliente ) throw new Error(`Ya existe una cuenta con el email ${email}`);
+
+            //3º paso: si no existe, generamos hash de la password usando bcrypt.hashSync() 
+            //  y creamos un objeto cliente y lo insertamos en coleccion 'clientes' de la bd
+            const _resInsert=await mongoCliente.db(process.env.MONGODB_DBNAME)
+                                                .collection('clientes')
+                                                .insertOne(
+                                                    {
+                                                        nombre: nombre,
+                                                        apellidos:'',
+                                                        cuenta:{
+                                                            email: email,
+                                                            password: bcrypt.hashSync(password, 10), //<--- generamos hash de la password con 10 bytes extra de "sal"
+                                                            activada: false,
+                                                            telefono:''
+                                                        },
+                                                        direcciones:[],
+                                                        listasFavoritos:[],
+                                                        opiniones:[]
+                                                    }
+                                                );
+            console.log('resultado de la insercion en coleccion clientes: ', _resInsert);
+            //4º paso: generamos JWT de un solo uso para q el cliente active la cuenta, se manda por email al cliente
+            //#region ---------------- envio de email usando mailjet API --------------------------------
+            /*
+                envio de email: https://dev.mailjet.com/openapi/openapi-mailjet/send-emails/postsendv3
+                - hay q mandar en cabecera Authorization: Basic <base64(public_key:private_key)>
+                - en el body del POST de la peticion hay q mandar un objeto JSON con el formato que especifica la API
+                    {
+                    "FromEmail":"pilot@mailjet.com", <---- pmr.aiki@gmail.com (poner el usuario registrado en mailjet)
+                    "FromName":"Your Mailjet Pilot", <---- Admin PcComponentes (poner el nombre de la cuenta registrada en mailjet)
+                    "Recipients":[
+                        {
+                        "Email":"passenger@mailjet.com", <--- email del cliente q hemos registrado en la coleccion clientes de la bd
+                        "Name":"Passenger 1" <--------------- nombre del cliente
+                        }
+                    ],
+                    "Subject":"Your email flight plan!", <----mensaje de bienvenida al portal, y activacion de cuenta
+                    "Text-part":"Dear passenger, welcome to Mailjet! May the delivery force be with you!", <-----------------  no lo rellenamos
+                    "Html-part":"<h3>Dear passenger, welcome to Mailjet!</h3><br />May the delivery force be with you!" <---- logo de la tienda, con link con JWT para activar la cuenta
+                    }          
+            */
+            //#endregion --------------------------------------------------------------------------------
+
+            const _codBase64ClavesMailjet=Buffer.from(`${process.env.MAILJET_PUBLIC_KEY}:${process.env.MAILJET_PRIVATE_KEY}`)
+                                                .toString('base64');
+            
+            const _tokenActivacion=jsonwebtoken.sign(
+                {
+                    email: _cliente.cuenta.email
+                },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: '10min'
+                }
+            );
+
+            const _bodyMail={
+                "FromEmail":"dgarram@outlook.com",
+                "FromName":"Admin PcComponentes",
+                "Recipients":[
+                    {
+                        "Email":_cliente.cuenta.email,
+                        "Name":_cliente.datos.nombre
+                    }
+                ],
+                "Subject":"Bienvenido a PcComponentes",
+                "Html-part":`
+                    <div>
+                        <h1>Bienvenido a PcComponentes</h1>
+                        <p>Gracias por registrarte en nuestra tienda.</p>
+                    </div>
+                    <div>
+                        <p> Gracias por registrarte en PcComponentes. Tu cuenta ha sido creada correctamente.</p>
+                        <p> Para finalizar el proceso de registro, debes ACTIVAR TU CUENTA. Para ello, haz click en el siuiente</p>
+                        <p> enlace: 
+                            <a href="http://localhost:3000/api/Cliente/ActivarCuenta?token=${_tokenActivacion}&email=${_cliente.cuenta.email}&idCliente=${_cliente._id}">
+                                Activar Cuenta
+                            </a>
+                        </p>
+                    </div>
+                `
+            }
+
+            const peticionMailjet=await fetch(
+                'https://api.mailjet.com/v3/send',
+                {
+                    method:'POST',
+                    headers:{
+                        'Authorization': `Basic ${_codBase64ClavesMailjet}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(_bodyMail)
+                }
+            );
+            console.log('resultado de la peticion a mailjet: ', peticionMailjet);
+
+            if( peticionMailjet.status !== 201 ) throw new Error(`Error al enviar email de activacion de cuenta, status: ${peticionMailjet.status}`);
+
+
+
+
+            //5º paso: generar respuesta al cliente para q revise su bandeja de entrada
+            res.status(200).send({ codigo:0, mensaje:'Registro ok, consulta bandeja de entrada de tu email para activar la cuenta' });
+        }catch(error){
+            console.log('Error al procesar la peticion POST /api/Cliente/Registro: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de registro: ${error.message}` } );             
+        }
+    } 
+)
+
+
+webServer.post(
+    '/api/Cliente/Login',
+    async function(req,res,next){
+        try{
+            //el cliente de REACT envia en el body un objeto { email: '....', password: '....'}, el middleware express.json() global
+            //lo ha metido en req.body
+            const { email, password }=req.body;
+            console.log('datos recibidos desde cliente react...', email, password);
+            
+            //1º paso: contecarse a la bd usando el cliente mongoCliente
+            await mongoCliente.connect();
+
+            //2º paso: buscar en la coleccion 'clientes' un documento q tenga ese email, SI NO EXISTE ---> enviar respuesta de error            
+            const _cliente=await mongoCliente.db(process.env.MONGODB_DBNAME)
+                                            .collection('clientes')
+                                            .findOne({ 'cuenta.email': email});
+            if( ! _cliente ) throw new Error(`No existe ninguna cuenta con el email ${email}`);
+            
+            console.log('cliente encontrado en bd: ', _cliente);
+
+
+            //3º paso: si existe la cuenta, comprobamos la password sacando su hash y comprobandolo con el existente en la bd
+            //         usando la funcion bcrypt.compareSync(), SI NO COINCIDEN ----> enviar respuesta de error de password incorrecta
+            if (! bcrypt.compareSync(password, _cliente.cuenta.password)) throw new Error('password incorrecta...');
+                                
+            //4º paso: genero estado de sesion para el cliente logueado, formas posibles:
+            // - cookies (estableces en cabecera http-response una cabecera Set-Cookie con valor las variables q quieras almacenar,
+            //          p.e el email, _id del cliente en coleccion clientes, ...) <--- cuando la vuelva a mandar el cliente de vuelta,
+            //         el middleware cookie-parser lo pondra en req.cookies en formato de objeto javascript
+            // - token JWT (json-web-token) string hasheado y firmado con una clave secreta en el servidor <---- usando el modulo
+            //         jsonwebtoken.sign() y se devolvera al cliente en la respuesta para q lo almacene. Se tiene q encargar de mandarlo
+            //         cuando requiera acciones especiales en el servidor
+            // - usando servidores externos meidante OAuth2.0 (google, facebook,...)
+            const _token=jsonwebtoken.sign(
+                {
+                    email: _cliente.cuenta.email,
+                    _id: _cliente._id
+                },
+                process.env.JWT_SECRET,
+                { issuer: 'PcComponentes-NODESERVER', expiresIn:'30min'}
+            );
+            console.log('token generado para el cliente logueado: ', _token);
+            
+            
+            
+            //5º paso: generar respuesta al cliente mandando JWT y datos del cliente q nos interesen para q los muestre en la app
+            res.status(200)
+                .send( 
+                        { 
+                            codigo: 0, 
+                            mensaje:'login correcot', 
+                            token:_token, 
+                            datosCliente: _cliente
+                        }
+                );
+
+        } catch(error){
+            console.log('Error al procesar la peticion POST /api/Cliente/Login: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de login: ${error.message}` } )
+        }
+    }
+)
+
+webServer.get(
+    '/api/Cliente/ActivarCuenta',
+    async function(req,res,next){
+        try{
+            //en la url del mail de activacion, en la querystring:  ? token=... & email=.... & idCliente=....
+            //el middleware express.urlencoded() global ha metido en req.query un objeto javascript con esas propiedades:
+            const { token, email, idCliente }=req.query;
+            
+            //1º paso: comprobar q el token JWT recibido es correcto y no ha caducado, usando jsonwebtoken.verify()
+            //2º paso: modificar en coleccion "clientes" de la bd, el documento con _id y email recuperados y cambiar
+            //         la propiedad cuenta.activada a true
+            //3º paso: generar respuesta al cliente de activacion de cuenta correcta si todo ha ido bien
+
+
+        } catch(error){
+            console.log('Error al procesar la peticion GET /api/Cliente/ActivarCuenta: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de activacion de cuenta: ${error.message}` } )
+        }
+    }
+)
 
 webServer.get(
                '/api/Tienda/Categorias', 
