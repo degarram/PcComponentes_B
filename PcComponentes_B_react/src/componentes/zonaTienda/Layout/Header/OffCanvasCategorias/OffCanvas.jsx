@@ -2,8 +2,10 @@ import './OffCanvas.css'
 import { useNavigate } from 'react-router'
 
 function OffCanvas(){
-
+    //en props recibimos como objeto JS los valores pasados desde el comp.padre <Header></Header>
+    //tiene este formato: { cats: [....], tipo: 'principales' }
     const navigate=useNavigate();
+    //console.log('props.cats en OffCanvas.jsx: ', props.cats);
 
     return (
         <div className="mt-5 mb-4">

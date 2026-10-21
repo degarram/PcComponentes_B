@@ -1,0 +1,28 @@
+cliente -------------------------------------> servidor nodejs  env: creds.oauth2.google	    sevidor GOOGLE (apis habilitadas pccomponentes)
+quiero aut.				  /api/Cliente/LoginGoogle <---------------------------> ¿creds ok? sino error de acceso prohibido a apis
+con google					||		  <----------------------------- si ok, url  de autentificación cliente
+				      url autentificación cliente
+	<--------------------------------------|
+ventanita de google de uso de oauth2
+creds. de google
+  |-----------------------------------------------------------------------------------------------------> check de creds si están ok
+													consulta la url de callback o puesta en contacto
+													con el servidor de node:
+												http://localhost:3000/api/Cliente/LoginGoogleCallBack
+													y manda un código a esa url	
+					/api/Cliente/LoginGoogleCallBack
+					recibe en queryString el código q le manda
+					GOOGLE						DAME JWT para APIS(código)
+					Con este CODIGO nodejs lo intercambia por  ------------------------> ¿el código es valido para esas APIS?
+					JWT de acceso a APIS habilitadas al PORTAL				si no es valido acceso denegado
+							||			<--------------------------- si es valido, JWT de acceso a esas APIS
+					recepción de JWT y los usamos para obtener	JWT-acceso-api
+					info del cliente ----------------------------------------------------> API: People-Api rescata la nfo del usuario
+							<----------------------------------------------------- nombre, apellidos, genero, tlfno, ....
+					- meto la info en la BD	
+					- genero JWT propio del portal
+					- y genero respuesta al cliente de react cerrando ventana de google
+	<------------------------------------------|
+sesión usuario iniciada
+redireccion a la pag.principal
+para q empiece a comprar

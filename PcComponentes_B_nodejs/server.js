@@ -34,6 +34,7 @@
 require('dotenv').config(); //<---- lee el fichero .env y crea variables de entorno, accesible mediante objeto "process.env",
                             // por ejemplo process.env.MONGODB_URL
 
+
 const mongodb=require('mongodb'); //<--- el modulo mongodb exporta un objeto que contiene la clase MongoClient y otras clases y funciones
 const express=require('express'); 
 const cookieParser=require('cookie-parser');  //<--- el modulo cookie-parser exporta una funcion q al ejecutarse devuelve una funcion
@@ -45,11 +46,13 @@ const cors=require('cors'); //<--- el modulo cors exporta una funcion q al ejecu
                            //que el cliente REACT pueda hacer peticiones HTTP al servidor web express aunque este
                            //se encuentre en un dominio distinto al del cliente REACT
 
+
 const bcrypt=require('bcrypt'); //<--- el modulo bcrypt exporta un objeto que contiene funciones para generar hash de passwords y comprobarlos
 const jsonwebtoken=require('jsonwebtoken'); //<--- el modulo jsonwebtoken exporta un objeto que contiene funciones para generar y comprobar tokens JWT
 
 const webServer=express(); //<--- de la ejecucion de la funcion express() se obtiene un objeto que representa el servidor web
                            // es un objeto Application de express: https://expressjs.com/en/5x/api/application/
+    
 
 const mongoCliente=new mongodb.MongoClient(process.env.MONGODB_URL); //<--- cliente para conectarnos a mongodb
 
@@ -70,6 +73,7 @@ webServer.use(cors()); //<--- 4º funcion middleware de la PIPELINE habilita COR
 //                     next();
 //                 } 
 //             );
+
 
 webServer.post(
     '/api/Cliente/Registro',
@@ -134,8 +138,9 @@ webServer.post(
                                                 .toString('base64');
             
             const _tokenActivacion=jsonwebtoken.sign(
-                {
-                    email: _cliente.cuenta.email
+                { 
+                    email: email,
+                    _id: _resInsert.insertedId
                 },
                 process.env.JWT_SECRET,
                 {
@@ -144,7 +149,7 @@ webServer.post(
             );
 
             const _bodyMail={
-                "FromEmail":"dgarram@outlook.com",
+                "FromEmail":"pmr.aiki@gmail.com",
                 "FromName":"Admin PcComponentes",
                 "Recipients":[
                     {
@@ -162,9 +167,13 @@ webServer.post(
                         <p> Gracias por registrarte en PcComponentes. Tu cuenta ha sido creada correctamente.</p>
                         <p> Para finalizar el proceso de registro, debes ACTIVAR TU CUENTA. Para ello, haz click en el siuiente</p>
                         <p> enlace: 
-                            <a href="http://localhost:3000/api/Cliente/ActivarCuenta?token=${_tokenActivacion}&email=${_cliente.cuenta.email}&idCliente=${_cliente._id}">
+                            <a href="http://localhost:3000/api/Cliente/ActivarCuenta?token=${_tokenActivacion}&email=${email}&idCliente=${_resInsert.insertedId}">
                                 Activar Cuenta
                             </a>
+
+                            o si no funciona, copia y pega la siguiente URL en tu navegador:
+                            <br />
+                            http://localhost:3000/api/Cliente/ActivarCuenta?token=${_tokenActivacion}&email=${email}&idCliente=${_resInsert.insertedId}                            
                         </p>
                     </div>
                 `
@@ -183,8 +192,10 @@ webServer.post(
             );
             console.log('resultado de la peticion a mailjet: ', peticionMailjet);
 
-            if( peticionMailjet.status !== 201 ) throw new Error(`Error al enviar email de activacion de cuenta, status: ${peticionMailjet.status}`);
+            const _bodyRespuestaMailjet=await peticionMailjet.json(); //<--- deserializamos el body de la respuesta de mailjet a un objeto JS
+            console.log('Body de la respuesta de Mailjet: ', _bodyRespuestaMailjet);
 
+            if( peticionMailjet.status !== 200 ) throw new Error(`Error al enviar email de activacion de cuenta, status: ${peticionMailjet.status}`);
 
 
 
@@ -197,6 +208,26 @@ webServer.post(
     } 
 )
 
+webServer.get(
+    '/api/Cliente/ActivarCuenta',
+    async function(req,res,next){
+        try{
+            //en la url del mail de activacion, en la querystring:  ? token=... & email=.... & idCliente=....
+            //el middleware express.urlencoded() global ha metido en req.query un objeto javascript con esas propiedades:
+            const { token, email, idCliente }=req.query;
+
+            //1º paso: comprobar q el token JWT recibido es correcto y no ha caducado, usando jsonwebtoken.verify()
+            //2º paso: modificar en coleccion "clientes" de la bd, el documento con _id y email recuperados y cambiar
+            //         la propiedad cuenta.activada a true
+            //3º paso: generar respuesta al cliente de activacion de cuenta correcta si todo ha ido bien
+
+
+        } catch(error){
+            console.log('Error al procesar la peticion GET /api/Cliente/ActivarCuenta: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de activacion de cuenta: ${error.message}` } )
+        }
+    }
+)
 
 webServer.post(
     '/api/Cliente/Login',
@@ -221,6 +252,7 @@ webServer.post(
 
             //3º paso: si existe la cuenta, comprobamos la password sacando su hash y comprobandolo con el existente en la bd
             //         usando la funcion bcrypt.compareSync(), SI NO COINCIDEN ----> enviar respuesta de error de password incorrecta
+            //          TODO: COMPROBAR QUE LA PROPIEDAD activada: true !!!!!
             if (! bcrypt.compareSync(password, _cliente.cuenta.password)) throw new Error('password incorrecta...');
                                 
             //4º paso: genero estado de sesion para el cliente logueado, formas posibles:
@@ -257,30 +289,126 @@ webServer.post(
         } catch(error){
             console.log('Error al procesar la peticion POST /api/Cliente/Login: ', error);
             res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de login: ${error.message}` } )
+        } finally {
+            await mongoCliente.close();
         }
     }
 )
+
+
+//#region --------------------- LOGIN CON GOOGLE ---------------------------------------------------
+//HAY Q HABILITAR DOS ENPOINTS PARA LOGIN CON GOOGLE:
+// 1º: /api/Cliente/LoginGoogle  <---- el cliente de REACT envia un objeto con el token de google, lo valida y genera JWT para la app
+// 2º: /api/Cliente/LoginGoogleCallback <---- endpoint con el q intercambiamos datos el servidor de google y nodejs
+
+//1º)crear cliente oauth con credenciales creadas en google-cloud-console; instalamos paquete: googleapis
+const {google}=require('googleapis');
+
+const oauth2Client=new google.auth.OAuth2(
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    'http://localhost:3000/api/Cliente/LoginGoogleCallBack'
+);
+
 
 webServer.get(
-    '/api/Cliente/ActivarCuenta',
+    '/api/Cliente/LoginGoogle',
     async function(req,res,next){
         try{
-            //en la url del mail de activacion, en la querystring:  ? token=... & email=.... & idCliente=....
-            //el middleware express.urlencoded() global ha metido en req.query un objeto javascript con esas propiedades:
-            const { token, email, idCliente }=req.query;
+            //1º) solicitamos url de login a google para despues recuperar info del perfil, .... <== scopes definidos en la API
+            //habilitada para sacar info del perfil del usuario de google q se loguee:
+            //  https://developers.google.com/people/api/rest/v1/people/get?apix_params=%7B%22resourceName%22%3A%22people%2Fme%22%2C%22personFields%22%3A%22emailAddresses%2Cphotos%2CphoneNumbers%22%7D#authorization-scopes
+            const urlLogin=oauth2Client.generateAuthUrl(
+                {
+                    access_type: 'offline', //<--- para q google nos de un refresh token, si no, solo nos da un access token q caduca en 1 hora
+                    scope:[
+                        'https://www.googleapis.com/auth/userinfo.email',
+                        'https://www.googleapis.com/auth/userinfo.profile',
+                        'https://www.googleapis.com/auth/user.phonenumbers.read'
+                    ]
+
+                }
+            );
+            //console.log('url de login a google para hacer login y q devuelvo al usuario: ', urlLogin);
+            res.status(200).send({ codigo:0, mensaje:'url de login a google generada correctamente', datos:{ url: urlLogin } });
             
-            //1º paso: comprobar q el token JWT recibido es correcto y no ha caducado, usando jsonwebtoken.verify()
-            //2º paso: modificar en coleccion "clientes" de la bd, el documento con _id y email recuperados y cambiar
-            //         la propiedad cuenta.activada a true
-            //3º paso: generar respuesta al cliente de activacion de cuenta correcta si todo ha ido bien
+            //2º)usando ese cliente solicitar url de login a google 
 
-
-        } catch(error){
-            console.log('Error al procesar la peticion GET /api/Cliente/ActivarCuenta: ', error);
-            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de activacion de cuenta: ${error.message}` } )
+        }catch(error){
+            console.log('Error al procesar la peticion GET /api/Cliente/LoginGoogle: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de login con google: ${error.message}` } )
         }
+
     }
 )
+
+//cuando el usuario se autentifica en google de forma correcta, google manda un conjunto de datos por GET a la url de callback
+//q hemos definido en el proyecto de google-cloud y en el cliente de oauh2
+webServer.get(
+    '/api/Cliente/LoginGoogleCallBack',
+    async function(req,res,next){
+        try{
+            //1º) google nos manda por querystring un "code" q es un token de acceso q caduca en 1 minuto, lo usamos para pedir a google
+            //   un access token y un refresh token (si access_type: 'offline' en la url de login)
+            const datosManadosGoogle=req.query;
+            console.log('code recibido desde google: ', datosManadosGoogle.code);
+
+            //solicitiamos tokens JWT de acceso a APIS habilitadas en el proyecto usando dicho codigo:
+
+            const objetoGetTokensReposne=await oauth2Client.getToken(datosManadosGoogle.code)
+            
+            // console.log('respuesta de google con access token y refresh token y mas datos....: ', objetoGetTokensReposne);
+            // console.log('tokens:', objetoGetTokensReposne.tokens);
+
+            //solicito con esos tokens de acceso, a traves del cliente de oauth la info del perfil del usuario:
+            oauth2Client.setCredentials(objetoGetTokensReposne.tokens);
+            const peopleApi=google.people({ version:'v1', auth: oauth2Client });
+
+            const userInfo= await peopleApi.people.get(
+                {
+                    resourceName: 'people/me',
+                    personFields: 'emailAddresses,names,photos,phoneNumbers'
+                }
+            );
+
+            console.log('info del perfil del usuario logueado en google: ', userInfo);
+            const datosUsuarioGoogle={
+                nombre: userInfo.data.names[0].displayName || '',
+                apellidos: userInfo.data.names[0].familyName || '',
+                cuenta:{
+                    email: userInfo.data.emailAddresses[0].value,
+                    password:'',
+                    activada: true,
+                    icono: userInfo.data.photos[0].url || '',
+                    telefono: userInfo.data.phoneNumbers?.[0].value || ''
+                },
+                direcciones:[],
+                favoritos:[],
+                opiniones:[],
+                pedidos:[]
+            }
+
+            console.log('datos del usuario logueado en google: ', datosUsuarioGoogle);
+            //deberia almacenar esta info en la bd (si no existe ya!!!!)
+            //generar token de sesion JWT firmado por mi
+            //mandar al cliente de REACT el token y los datos del usuario para q los muestre en la app
+
+            res.status(200).send({ codigo:0, mensaje:'login con google correcto', datos:{ cliente: datosUsuarioGoogle, token:'' } });
+                
+
+        }catch(error){
+            console.log('Error al procesar la peticion GET /api/Cliente/LoginGoogleCallBack: ', error);
+            res.status(200).send( { codigo: 1, mensaje: `Error al procesar la peticion de login con google: ${error.message}` } )
+        }
+
+    }
+)
+
+
+//#endregion --------------------- LOGIN CON GOOGLE ---------------------------------------------------
+
+
+
 
 webServer.get(
                '/api/Tienda/Categorias', 

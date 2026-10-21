@@ -1,9 +1,9 @@
 import './Header.css';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import OffCanvas from './OffCanvasCategorias/OffCanvas.jsx'
 
 function Header(){
-
     const navigate=useNavigate(); //<--- el hook useNavigate() de react-router devuelve una funcion q permite invocar al modulo enrutamiento con diferentes urls, historico, etc...
 
 
@@ -16,7 +16,7 @@ function Header(){
 
             {/* .... offcanvas con categorias.....*/}
             <div className="col-2">
-                <OffCanvas />
+                <OffCanvas  />
             </div>
 
             {/* .... caja de busqueda y dropdown de catalogo.....*/}
