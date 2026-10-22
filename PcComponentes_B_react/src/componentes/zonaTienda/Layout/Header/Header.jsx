@@ -1,44 +1,46 @@
 import './Header.css';
 import { useState } from 'react';
+import useStore from '../../../../hooks/useStore.jsx';
 import { useNavigate } from 'react-router';
 import OffCanvas from './OffCanvasCategorias/OffCanvas.jsx'
+import SesionButton from './SesionButton/SesionButton.jsx'
 
-function Header(){
-    const navigate=useNavigate(); //<--- el hook useNavigate() de react-router devuelve una funcion q permite invocar al modulo enrutamiento con diferentes urls, historico, etc...
-
+function Header() {
+    const navigate = useNavigate(); //<--- el hook useNavigate() de react-router devuelve una funcion q permite invocar al modulo enrutamiento con diferentes urls, historico, etc...
+    const [datosCliente] = useStore();
 
     return <div className="container">
         <div className="row">
             {/* .... logo de la tienda.....*/}
             <div className="col-2">
-                <img src="/imagenes/logo_pccomponentes.png" alt="logo"  className="img-fluid" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}/>
+                <img src="/imagenes/logo_pccomponentes.png" alt="logo" className="img-fluid" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
             </div>
 
             {/* .... offcanvas con categorias.....*/}
             <div className="col-2">
-                <OffCanvas  />
+                <OffCanvas />
             </div>
 
             {/* .... caja de busqueda y dropdown de catalogo.....*/}
             <div className="col-4">
-              <div className="d-flex flex-row justify-content-between mt-5 mb-4">
+                <div className="d-flex flex-row justify-content-between mt-5 mb-4">
 
-                <div className="dropdown">
-                  <button className="btn btn-outline-secondary dropdown-toggle" type="button" style={{ borderRadius: '0'}} id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                    Todo el Catálogo
-                  </button>
-                  <ul className="dropdown-menu">
-                    <li><a className="dropdown-item" href="#">Todo el Catálogo</a></li>
-                    <li><a className="dropdown-item" href="#">Reacondicionados</a></li>
-                  </ul>
+                    <div className="dropdown">
+                        <button className="btn btn-outline-secondary dropdown-toggle" type="button" style={{ borderRadius: '0' }} id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                            Todo el Catálogo
+                        </button>
+                        <ul className="dropdown-menu">
+                            <li><a className="dropdown-item" href="#">Todo el Catálogo</a></li>
+                            <li><a className="dropdown-item" href="#">Reacondicionados</a></li>
+                        </ul>
+                    </div>
+
+                    <div className="input-group w-100">
+                        <input type="search" className="form-control" style={{ borderRadius: '0' }} placeholder="Buscar" aria-label="Buscar" />
+                        <button className="btn btn-outline-secondary" style={{ borderRadius: '0' }} type="submit"><i className="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+
                 </div>
-
-                <div className="input-group w-100">
-                  <input type="search" className="form-control" style={{ borderRadius: '0'}} placeholder="Buscar" aria-label="Buscar" />
-                  <button className="btn btn-outline-secondary" style={{ borderRadius: '0'}} type="submit"><i className="fa-solid fa-magnifying-glass"></i></button>
-                </div>
-
-              </div>
             </div>
 
             {/* .... botones de inicio sesion y carrito compra.....*/}
@@ -46,15 +48,13 @@ function Header(){
                 <div className="d-flex flex-row justify-content-end mt-5 mb-4">
                     <button className="btn btn-outline-secondary btn-sm"><img src="/imagenes/icono_stars.png" alt="icono stars" /> Buscar con IA</button>
 
-                    <button className="btn btn-light btn-sm" onClick={ ()=> navigate('/Cliente/LoginRegistro')}>
-                        <i className="fa-regular fa-user"></i> Mi Cuenta
-                    </button>
+                    <SesionButton funcNav={navigate} email={datosCliente?.cuenta?.email} icono={datosCliente?.perfil?.icono} />
 
                     <button className="btn btn-light btn-sm">
                         <i className="fa-solid fa-cart-shopping position-relative"></i> Mi Cesta
                     </button>
                 </div>
-                
+
             </div>
         </div>
 
