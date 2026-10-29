@@ -9,6 +9,10 @@ import LoginRegistro from './componentes/zonaCliente/LoginRegistro/LoginRegistro
 import Layout from './componentes/zonaTienda/Layout/Layout.jsx'
 import Home from './componentes/zonaTienda/Home/Home.jsx'
 import ProductosCat from './componentes/zonaTienda/Productos/ProductosCat.jsx'
+import DetallesProducto from './componentes/zonaTienda/DetallesProducto/DetallesProducto.jsx'
+import FetchProductoLoader from './loaders/FetchProducto.Loader.js'
+import { productoCacheMiddleware } from './middlewares/ProductoCache.middleware.js'
+
 //#region ------ configuracion modulo enrutamiento REACT-ROUTER-DOM ------
 //1º configuramos el array de objetos Route q necesita el modulo de enrutamiento
 //cada objeto Route define 'path' o ruta a interceptar y 'element'/'Component' componente a renderizar
@@ -16,12 +20,19 @@ import ProductosCat from './componentes/zonaTienda/Productos/ProductosCat.jsx'
 
 const routerObjects=createBrowserRouter(
   [
-    {  
+    {
       element: <Layout/> ,
       children:[
         { path:'/' , element: <Home/> },
         //{ path: 'Productos/Categoria/:categoria', element: <ProductosCat/> }, <----- segmentos variables para usar hook useParams()
-        { path: 'Productos/Categoria', element: <ProductosCat/> },
+        { path: 'Productos', element: <ProductosCat/> },
+        { 
+          path: 'Producto/:idproducto',
+          //loader: async ({ context, params, request, url }) => {},
+          middleware: [productoCacheMiddleware],
+          loader: FetchProductoLoader,
+          element: <DetallesProducto/>
+        },
       ]
     },
     { path:'Cliente',

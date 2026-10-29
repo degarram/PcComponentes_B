@@ -15,15 +15,21 @@ export const CarritoSlice=(get, set, store)=>{
     return {
         ...initialStateCarrito,
         setCarrito: (accion, newItem)=>{
-            set (stateAnterior => {
+            console.log('estamos en setCarrito de CarritoSlice, accion=', accion, ' newItem=' ,newItem);
+
+            set(stateAnterior => {
                 //accion puede ser: 'agregar', 'eliminar', 'modificar' <--- en funcion de esta accion tengo que modificar el array de itemsCarrito
                 //del objeto carrito del state global, y recalcular subtotal, gastosEnvio, total
                 //1º) debo clonar el array de itemsCarrito del state global, para no modificarlo directamente
                 //2º) busco el itemCarrito en el array clonado para saber si existe...
+                console.log('setCarrito: stateAnterior.carrito.itemsCarrito=', stateAnterior.carrito.itemsCarrito);
+               
                 let _itemsCarritoClonado = [...stateAnterior.carrito.itemsCarrito];
                 let _posicionItem = _itemsCarritoClonado.findIndex(item => item.producto._id === newItem.producto._id);
-                switch(accion){
+                switch(accion.trim().toLowerCase()){
                     case 'agregar':
+                        console.log('==> AGREGANDO ITEM: newItem=', newItem, ' _posicionItem=', _posicionItem);
+
                         if(_posicionItem === -1){ //el item no existe en el array, lo agreto...
                             _itemsCarritoClonado.push( newItem );
                         } else {
@@ -51,6 +57,8 @@ export const CarritoSlice=(get, set, store)=>{
                 let _gastosEnvio = 0; //<----- dependera de direccion de envio, peso, etc....
                 let _total = _subtotal + _gastosEnvio + (_subtotal * stateAnterior.carrito.iva);
 
+                console.log('setCarrito: accion=', accion, ' newItem=', newItem, ' _itemsCarritoClonado=', _itemsCarritoClonado, ' _subtotal=', _subtotal, ' _gastosEnvio=', _gastosEnvio, ' _total=', _total);
+                
                 return {
                     ...stateAnterior,
                     carrito: {

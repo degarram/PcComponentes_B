@@ -1,0 +1,109 @@
+.panel-subcategorias {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    height: 100%;
+    width: 0;
+    overflow: hidden;
+    background-color: #fff;
+    border-left: 1px solid #dee2e6;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+    visibility: hidden;
+    transition: width 0.3s ease-in-out, visibility 0.3s;
+}
+
+.panel-subcategorias.abierto {
+    width: 400px;
+    visibility: visible;
+}
+
+.panel-subcategorias-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1rem 0 1rem;
+    min-width: 400px; /* evita que el texto se recoloque durante la animacion de width */
+}
+
+.panel-subcategorias hr {
+    margin: 1rem;
+}
+
+.panel-subcategorias-body {
+    padding: 0 1rem 1rem 1rem;
+    min-width: 400px;
+    height: calc(100% - 80px);
+    overflow-y: auto;
+}
+
+.panel-subcategorias-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.panel-subcategorias-item:hover,
+.panel-subcategorias-item.abierto {
+    background-color: #f8f9fa;
+    color: #ff6000;
+}
+
+.panel-subcategorias-item.abierto {
+    font-weight: bold;
+}
+
+/* flecha que gira 180º al desplegar, como el caret de un dropdown */
+.panel-subcategorias-chevron {
+    font-size: 0.75rem;
+    transition: transform 0.25s ease-in-out;
+}
+
+.panel-subcategorias-item.abierto .panel-subcategorias-chevron {
+    transform: rotate(180deg);
+}
+
+/*
+  Lista de tercer nivel: se anima la altura de 0 a "auto" con el truco de css grid
+  (grid-template-rows de 0fr a 1fr), sin necesidad de calcular alturas en js.
+*/
+.panel-tercer-nivel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease-in-out;
+}
+
+.panel-tercer-nivel.abierto {
+    grid-template-rows: 1fr;
+}
+
+.panel-tercer-nivel-contenido {
+    overflow: hidden;
+    padding: 0 0.25rem; /* deja ver la sombra lateral del dropdown */
+}
+
+.panel-tercer-nivel .dropdown-menu {
+    margin: 0.25rem 0 0.5rem 0;
+}
+
+.panel-tercer-nivel .dropdown-item:hover,
+.panel-tercer-nivel .dropdown-item:focus {
+    background-color: #fff3eb;
+    color: #ff6000;
+}
+
+/* En pantallas pequeñas no cabe al lado: se superpone sobre el propio offcanvas */
+@media (max-width: 768px) {
+    .panel-subcategorias {
+        left: 0;
+    }
+    .panel-subcategorias.abierto {
+        width: 100%;
+    }
+    .panel-subcategorias-header,
+    .panel-subcategorias-body {
+        min-width: 0;
+    }
+}
