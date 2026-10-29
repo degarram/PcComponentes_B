@@ -1,24 +1,54 @@
-import './Productos.css';
-import { useSearchParams } from 'react-router';
+import './ProductosCat.css'
+//import { useParams } from 'react-router' //<---- hook de react-router para interceptar segmentos variables en url
+import { useSearchParams } from 'react-router' //<---- hook de react-router para interceptar valores variables por query string en url
+import useProductosPorCategoria from './ProductosPorCategoria.Hook.js'
+import MiniProducto from './MiniProducto/MiniProducto.jsx'
 
 function ProductosCat(){
-    // let parametrosUrl=useParams(); //<--- objeto con formato { categoria: '....' }
-    // console.log('parametrosUrl.categoria: ',parametrosUrl);
-    const [ queryParams, setQueryParams ]=useSearchParams();  //<---- devuelve un array con 2 elementos: [ objetoURLSearchParams, funcion_modificadora_objeto ]
-    console.log('valor devuelto 1º posicion array, objeto URLSearchParams:', queryParams);
-    console.log('valor devuelto 2º posicion array, funcion modificadora:', setQueryParams);
+    //---- hook para interceptar segmentos variables en URL -----------------
+    // const valorDevueltoPorHookUseParams=useParams() //<--- el hook useParams() de react-router nos permite acceder a los parametros de la url
+    // console.log('valorDevueltoPorHookUseParams: ', valorDevueltoPorHookUseParams) //<--- el hook useParams() de react-router nos permite acceder a los parametros de la url
+    //const { nombreCat } = useParams();
+    
+    //---- hook para interceptar valores variables por query string en URL -----------------
+    // const valorDevueltoPorHookUseSearchParams=useSearchParams() //<--- el hook useSearchParams() de react-router nos permite acceder a los parametros de la url
+    // console.log('valorDevueltoPorHookUseSearchParams: ', valorDevueltoPorHookUseSearchParams) //<--- el hook useSearchParams() de react-router nos permite acceder a los parametros de la url
+    const [searchParams, setSearchParams] = useSearchParams() //<--- el hook useSearchParams() de react-router nos permite acceder a los parametros de la url    
+    // console.log('valor de 1º posicion array devuelve hook: ', searchParams);
+    // console.log('valor de 2º posicion array devuelve hook: ', setSearchParams);
+    
+    const pathCat = searchParams.get('pathCat') //<--- el hook useSearchParams() de react-router nos permite acceder a los parametros de la url
+    const { productos, cargando, error } = useProductosPorCategoria(pathCat);
 
+    if (cargando) {
+        return <div className="d-flex flex-column justify-content-center align-items-center ">Cargando...</div>
+    }
 
-    return <div className="container">
-        <div className="row">
-            <div className="col-12 d-flex flex-column align-items-center justify-content-center">
-                {/* <h1>Categoria: <strong>{parametrosUrl.categoria}</strong></h1>
-                <p>...cargamos desde bd los productos de la categoria {parametrosUrl.categoria}...</p> */}
-                <h1>Categoria: <strong>{queryParams.get('categoria')}</strong></h1>
-                <p>...cargamos desde bd los productos de la categoria { queryParams.get('categoria') }...</p>
-            </div>
+    if (error) {
+        return <div className="d-flex flex-column justify-content-center align-items-center ">Error: {error}</div>
+    }
+
+    return (
+        <div className="d-flex flex-column justify-content-center align-items-center ">
+        {
+            productos.length === 0 ? (
+                <div className="text-muted">No hay productos en esta categoría</div>
+            ) : (
+                <div className="productos-cat-grid">
+                    {
+                        productos.map(
+                            producto => (
+                                    <div key={producto._id} className="producto-cat-item">
+                                        <MiniProducto producto={producto} />
+                                    </div>
+                            )
+                        )
+                    }
+                </div>
+            )
+        }
         </div>
-    </div>
+    )
 }
 
-export default ProductosCat;
+export default ProductosCat
