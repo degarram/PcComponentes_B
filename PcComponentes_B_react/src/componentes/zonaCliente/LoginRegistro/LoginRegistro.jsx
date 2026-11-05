@@ -1,9 +1,19 @@
 import './LoginRegistro.css';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
+import useStore  from '../../../stateGlobal/zustandStateSlices';
 
 function LoginRegistro(){
+    
+    //const stateGlobal = useStore(); //<--- hook de zustand q devuelve el state global y las funciones q lo modifican
+    //no quiero toooooooodo el objeto del state-global, solo quiero:
+    //- la funcion para meter los datos del usuario logueado
+    //- la funcion para meter el token de usuario logueado
+    const divErrores=useRef(null);
+    const poppupGoogle=useRef(null);
 
+    const { setDatosCliente, setAccessToken, setRefreshToken } = useStore(); //<--- hook de zustand q devuelve el state global y las funciones q lo modifican
+    
     const navigate = useNavigate(); //<--- el hook useNavigate() de react-router devuelve una funcion q permite invocar al modulo enrutamiento con diferentes urls, historico, etc...
     const [enLogin, setEnLogin] = useState(false); // variable del state para determinar si estoy en login/registro <--- se cambia en click ultimo boton form
     const [ formData, setFormData ] = useState( 
@@ -15,6 +25,47 @@ function LoginRegistro(){
         } 
     )
 
+    useEffect(
+        ()=>{ //funcion q se ejecuta cuando cambia alguna variable del array de dependencias, si devuelve algun valor
+                //tiene que ser obligatoriamente una funcion(se llama "cleanup function") q se ejecuta cuando la funcion del efecto
+                //acaba de ejecutarse
+                function handlerMessageFromPopup(evento){
+                    console.log('mensaje recibido del popup: ', evento);
+                    const { codigo, mensaje,datos } = evento.data;
+                    if(codigo==0){
+                        //cierro el popup....
+                        evento.source.close();
+                        
+                        //guardo en el state global los datos del cliente y el token de acceso
+                        setDatosCliente(datos.cliente);
+                        setAccessToken(datos.token);
+
+                        //redirecciono a la pagina principal
+                        navigate('/');
+                    } else {
+                        //cierro el popup....
+                        evento.source.close();
+                        //deberia limpiar el div-errores antes de mostrar nada, para q no se concatenen mensajes...
+                        //muestro el mensaje de error en el div de errores del form
+                        divErrores.current.innerHTML= `<div class="alert alert-danger" role="alert">${mensaje}</div>`;
+                    }
+                }
+
+                window.addEventListener('message', handlerMessageFromPopup); //<--- escucho el mensaje q me manda el popup de google cuando termina de autentificarme
+                return ()=>{
+                    //esta funcion se ejecutara cuando el componente se desmonte...quito manejador
+                    window.removeEventListener('message', handlerMessageFromPopup);
+                    //deberia comprobar q si el popup sigue abierto, cerrarlo, para q no quede abierto en segundo plano
+                    if(poppupGoogle.current && !poppupGoogle.current.closed){
+                        poppupGoogle.current.close();
+                    }
+                }
+            },
+        [] //<---- array de variables de dependencias, si esta vacio EL EFECTO SOLO SE EJEUCUTA UNA VEZ AL INICIO DEL COMPONENTE
+    )
+ 
+ 
+ 
     /*
 
        ---- variables del state individuales para mapear cada campo del formulario -----------
@@ -57,7 +108,45 @@ function LoginRegistro(){
         console.log('nuevo valor del state modificado ....', formData)
     }
 
+    async function handlerSubmitForm(){
+        try{
+            console.log('submit del form, datos del state: ', formData);
+            //const _url= enLogin ? 'http://localhost:3000/api/Cliente/login' : 'http://localhost:3000/api/Cliente/Registro';
+            const _url = `http://localhost:3000/api/Cliente/${ enLogin ? 'Login' : 'Registro' }`;
+            const _petServer=await fetch(_url,{
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
 
+            const _respServer=await _petServer.json();
+            
+            console.log('respuesta del server: ', _respServer);
+            if(_respServer.codigo !==0) throw new Error(_respServer.mensaje);
+            setDatosCliente(_respServer.datos.cliente);
+            setAccessToken(_respServer.datos.token);
+            navigate('/'); //<--- redirijo a la pagina principal
+        } catch (error) {
+            console.error('Error al enviar el formulario: ', error);
+        }
+    }
+
+    async function handlerLoginGoogle(){
+        try{
+            //lanzo peticion al servidor de nodejs para q me devuelva una url de google con la q poder autentificarme...
+            const petServer=await fetch('http://localhost:3000/api/Cliente/LoginGoogle');
+            //como respuesta me manda en la prop. datos <--- url a cargar
+            const respServer=await petServer.json();
+            if(respServer.codigo !==0) throw new Error(respServer.mensaje);
+
+            poppupGoogle.current=window.open(respServer.datos.url,'login with google','width=600,height=600');
+
+        } catch (error) {
+            console.error('Error al iniciar sesión con Google: ', error);
+        }
+    }
 
     return <div className="container">
                 <div className="row">
@@ -76,7 +165,23 @@ function LoginRegistro(){
                     <div className="col-6">
                         <div className="container">
                             <div className="row"><div className="col"><h4><strong> { enLogin ? "Iniciar sesión" : "Crear cuenta" }</strong></h4></div></div>
-                            <div className="row m-3"><div className="col d-grid gap-1"><button type="button" id="btnlogingmail"  className="btn btn-light btn-sm" ><img  src="/imagenes/boton_login_GMAIL.png"/></button></div></div>
+                            
+                            {/* ..... div para mostrar mensajes de error del server ..... */}
+                            <div className="row" ref={divErrores}></div>
+
+
+
+                            <div className="row m-3">
+                                <div className="col d-grid gap-1">
+                                    <button type="button" 
+                                            id="btnlogingmail"  
+                                            className="btn btn-light btn-sm"
+                                            onClick={ handlerLoginGoogle} >
+                                                <img  src="/imagenes/boton_login_GMAIL.png"/>
+                                    </button>
+                                </div>
+                            </div>
+                            
                             <div className="row"><div className="col m-4 d-flex flex-row align-items-center justify-content-center"><h6><span> O bien </span></h6></div></div>
 
 
@@ -120,7 +225,7 @@ function LoginRegistro(){
                             {/*---------------------------------- */}
                             <div className="row m-4">
                                 <div className="col-12 d-flex flex-row align-items-center justify-content-center">
-                                        <button className="btn pccomponentes-primary w-100">
+                                        <button className="btn pccomponentes-primary w-100" onClick={ handlerSubmitForm}>
                                             {
                                                 ! enLogin ? "Crear cuenta" : "Iniciar Sesion"
                                             }

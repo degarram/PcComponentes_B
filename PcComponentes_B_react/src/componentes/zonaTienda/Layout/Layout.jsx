@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 
 import Header from './Header/Header.jsx';
 import Footer from './Footer/Footer.jsx';
+import OffCanvasCarrito from '../Carrito/OffCanvasCarrito/OffCanvasCarrito.jsx';
 
 function Layout(){
     return <div className="container">
@@ -26,6 +27,10 @@ function Layout(){
                 <Footer />
             </div>
         </div>    
+
+        {/* .... offcanvas del carrito disponible para que pueda ser abierto por cualquier componente de la aplicacion */}
+        <OffCanvasCarrito />
+        
     </div>
 }
 
